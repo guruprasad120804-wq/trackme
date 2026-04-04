@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { authGoogle } from "@/lib/api";
 import { Loader2 } from "lucide-react";
 
-export default function AuthCallbackPage() {
+function CallbackHandler() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -35,23 +35,36 @@ export default function AuthCallbackPage() {
 
   if (error) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-center">
-          <p className="text-red-400 text-sm mb-4">{error}</p>
-          <a href="/login" className="text-amber hover:underline text-sm">
-            Back to login
-          </a>
-        </div>
+      <div className="text-center">
+        <p className="text-red-400 text-sm mb-4">{error}</p>
+        <a href="/login" className="text-amber hover:underline text-sm">
+          Back to login
+        </a>
       </div>
     );
   }
 
   return (
+    <div className="text-center">
+      <Loader2 className="h-8 w-8 animate-spin text-amber mx-auto mb-4" />
+      <p className="text-sm text-muted-foreground">Signing you in...</p>
+    </div>
+  );
+}
+
+export default function AuthCallbackPage() {
+  return (
     <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <Loader2 className="h-8 w-8 animate-spin text-amber mx-auto mb-4" />
-        <p className="text-sm text-muted-foreground">Signing you in...</p>
-      </div>
+      <Suspense
+        fallback={
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-amber mx-auto mb-4" />
+            <p className="text-sm text-muted-foreground">Loading...</p>
+          </div>
+        }
+      >
+        <CallbackHandler />
+      </Suspense>
     </div>
   );
 }
