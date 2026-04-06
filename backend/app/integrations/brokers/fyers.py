@@ -45,7 +45,11 @@ class FyersAdapter(BrokerAdapter):
                 "grant_type": "authorization_code",
                 "appIdHash": app_id_hash,
                 "code": code,
+                "redirect_uri": redirect_uri,
             })
+            if resp.status_code != 200:
+                import logging
+                logging.getLogger(__name__).error(f"Fyers token error: {resp.status_code} {resp.text}")
             resp.raise_for_status()
             data = resp.json()
 

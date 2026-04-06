@@ -338,12 +338,19 @@ async def _get_or_create_broker(bt: BrokerType, db: AsyncSession) -> Broker:
 
 async def _check_connection_limit(user: User, db: AsyncSession):
     """Check if user has reached their subscription's broker connection limit."""
+    from app.models.subscription import Subscription
+
     result = await db.execute(
         select(func.count(BrokerConnection.id)).where(BrokerConnection.user_id == user.id)
     )
     count = result.scalar() or 0
 
-    plan = user.subscription_plan.value if user.subscription_plan else "free"
+    # Explicitly query subscription to avoid lazy-load in async context
+    sub_result = await db.execute(
+        select(Subscription).where(Subscription.user_id == user.id)
+    )
+    subscription = sub_result.scalar_one_or_none()
+    plan = subscription.plan.value if subscription else "free"
     limits = PLAN_LIMITS.get(plan, PLAN_LIMITS.get("free", {}))
     max_connections = limits.get("max_broker_connections", 1)
 
