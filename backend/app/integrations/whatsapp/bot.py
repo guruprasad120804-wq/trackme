@@ -50,6 +50,12 @@ async def handle_whatsapp_message(phone: str, text: str):
         elif command in ("/holdings", "holdings"):
             await _send_holdings_list(phone, user_id, db)
 
+        elif command in ("/alerts", "alerts"):
+            await _send_alerts_list(phone, user_id, db)
+
+        elif command in ("/summary", "summary"):
+            await _send_portfolio_summary(phone, user_id, db)
+
         else:
             # Use AI for free-form questions
             from app.services.ai_assistant import get_ai_response
@@ -120,5 +126,34 @@ async def _send_holdings_list(phone: str, user_id: str, db):
 
     if len(holdings_sorted) > 15:
         lines.append(f"\n_...and {len(holdings_sorted) - 15} more. View all in the app._")
+
+    await send_whatsapp_message(phone, "\n".join(lines))
+
+
+async def _send_alerts_list(phone: str, user_id: str, db):
+    import uuid
+    from app.models.alert import Alert
+
+    result = await db.execute(
+        select(Alert).where(
+            Alert.user_id == uuid.UUID(user_id),
+            Alert.is_active.is_(True),
+        )
+    )
+    alerts = result.scalars().all()
+
+    if not alerts:
+        await send_whatsapp_message(phone, "🔔 No active alerts. Create alerts in the TrackMe app.")
+        return
+
+    lines = ["🔔 *Active Alerts*\n"]
+    for a in alerts[:10]:
+        condition = a.condition.value.replace("_", " ").title() if a.condition else ""
+        threshold = f"₹{a.threshold:,.0f}" if a.threshold else ""
+        lines.append(f"• *{a.name}*")
+        lines.append(f"  {condition} {threshold}")
+
+    if len(alerts) > 10:
+        lines.append(f"\n_...and {len(alerts) - 10} more._")
 
     await send_whatsapp_message(phone, "\n".join(lines))

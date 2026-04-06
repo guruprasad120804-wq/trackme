@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import auth, dashboard, portfolio, transactions, alerts, chat, subscription, import_data, settings
+from app.api.v1 import auth, dashboard, portfolio, transactions, alerts, chat, subscription, import_data, settings, mf, notifications, assets, insurance
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -13,3 +13,7 @@ api_router.include_router(chat.router, prefix="/chat", tags=["ai-chat"])
 api_router.include_router(subscription.router, prefix="/subscription", tags=["subscription"])
 api_router.include_router(import_data.router, prefix="/import", tags=["import"])
 api_router.include_router(settings.router, prefix="/settings", tags=["settings"])
+api_router.include_router(mf.router, prefix="/mf", tags=["mf-import"])
+api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
+api_router.include_router(assets.router, prefix="/assets", tags=["assets"])
+api_router.include_router(insurance.router, prefix="/insurance", tags=["insurance"])

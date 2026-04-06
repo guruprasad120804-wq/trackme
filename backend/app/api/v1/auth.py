@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,44 +12,71 @@ from app.models.portfolio import Portfolio
 from app.schemas.auth import GoogleAuthRequest, TokenResponse, UserResponse, RefreshTokenRequest
 from app.utils.security import create_access_token, create_refresh_token, decode_token
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.post("/google", response_model=TokenResponse)
 async def google_auth(body: GoogleAuthRequest, db: AsyncSession = Depends(get_db)):
     """Authenticate via Google OAuth. Creates user on first login."""
-    tokens = await exchange_code_for_tokens(body.code, body.redirect_uri)
-    google_user = await get_google_user_info(tokens["access_token"])
+    # 1. Exchange code for tokens
+    try:
+        tokens = await exchange_code_for_tokens(body.code, body.redirect_uri)
+    except Exception as e:
+        logger.error("Google code exchange failed: %s", e)
+        raise HTTPException(status_code=401, detail="Google authentication failed. Please try again.")
+
+    # 2. Get user info from Google
+    try:
+        google_user = await get_google_user_info(tokens["access_token"])
+    except Exception as e:
+        logger.error("Google user info fetch failed: %s", e)
+        raise HTTPException(status_code=401, detail="Could not fetch Google profile.")
 
     google_id = google_user["id"]
     email = google_user["email"]
     name = google_user.get("name", email.split("@")[0])
     avatar = google_user.get("picture")
 
-    # Find or create user
-    result = await db.execute(select(User).where(User.google_id == google_id))
-    user = result.scalar_one_or_none()
+    # 3. Find or create user
+    try:
+        result = await db.execute(select(User).where(User.google_id == google_id))
+        user = result.scalar_one_or_none()
 
-    if not user:
-        user = User(email=email, name=name, avatar_url=avatar, google_id=google_id)
-        db.add(user)
-        await db.flush()
+        if not user:
+            # Also check by email (user may exist from a different auth method)
+            result = await db.execute(select(User).where(User.email == email))
+            user = result.scalar_one_or_none()
+            if user:
+                # Link existing email-based account to Google
+                user.google_id = google_id
+                user.avatar_url = avatar
+            else:
+                user = User(email=email, name=name, avatar_url=avatar, google_id=google_id)
+                db.add(user)
+                await db.flush()
 
-        # Create default subscription (free)
-        sub = Subscription(user_id=user.id, plan=SubscriptionPlan.FREE, status=SubscriptionStatus.ACTIVE)
-        db.add(sub)
+                # Create default subscription (free)
+                sub = Subscription(user_id=user.id, plan=SubscriptionPlan.FREE, status=SubscriptionStatus.ACTIVE)
+                db.add(sub)
 
-        # Create default portfolio
-        portfolio = Portfolio(user_id=user.id, name="My Portfolio", is_default=True)
-        db.add(portfolio)
+                # Create default portfolio
+                portfolio = Portfolio(user_id=user.id, name="My Portfolio", is_default=True)
+                db.add(portfolio)
 
-        await db.commit()
-        await db.refresh(user)
-    else:
-        # Update profile info from Google
-        user.name = name
-        user.avatar_url = avatar
-        await db.commit()
+            await db.commit()
+            await db.refresh(user)
+        else:
+            # Update profile info from Google
+            user.name = name
+            user.avatar_url = avatar
+            await db.commit()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("User creation/update failed: %s", e)
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="Account setup failed. Please try again.")
 
     access_token = create_access_token(str(user.id))
     refresh_token = create_refresh_token(str(user.id))

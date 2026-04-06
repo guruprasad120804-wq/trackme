@@ -35,14 +35,30 @@ class Settings(BaseSettings):
 
     # AI
     anthropic_api_key: str = ""
+    openrouter_api_key: str = ""
+    openrouter_primary_model: str = "qwen/qwen3.6-plus:free"
+    openrouter_fallback_model: str = "nvidia/nemotron-3-super-120b-a12b:free"
+    openrouter_backup_model: str = "nvidia/nemotron-3-nano-30b-a3b:free"
+
+    # MF Aggregator
+    mf_api_key: str = ""
+    mf_base_url: str = "https://api.example.com/mf"
 
     # AMFI
     amfi_nav_url: str = "https://www.amfiindia.com/spages/NAVAll.txt"
 
-    # CORS
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    # CORS — comma-separated string, split in code
+    cors_origins_str: str = "http://localhost:3000,http://localhost:5173"
 
     model_config = {"env_file": ".env", "extra": "ignore"}
+
+    @property
+    def cors_origins(self) -> list[str]:
+        origins = [o.strip() for o in self.cors_origins_str.split(",") if o.strip()]
+        # Always include frontend_url
+        if self.frontend_url and self.frontend_url not in origins:
+            origins.append(self.frontend_url)
+        return origins
 
 
 @lru_cache

@@ -100,13 +100,33 @@ async def _evaluate_alerts():
 
 async def _send_notification(alert, channel: str, value):
     """Send alert notification via the specified channel."""
-    if channel == "whatsapp":
+    from app.database import async_session
+
+    if channel == "push":
+        from app.models.notification import Notification
+        async with async_session() as db:
+            notif = Notification(
+                user_id=alert.user_id,
+                title=f"Alert: {alert.name}",
+                message=f"Triggered at value ₹{value:,.2f}" if value else f"Alert '{alert.name}' triggered",
+                type="alert_triggered",
+                metadata_json={"alert_id": str(alert.id)},
+            )
+            db.add(notif)
+            await db.commit()
+
+    elif channel == "whatsapp":
         from app.integrations.whatsapp.client import send_whatsapp_message
-        # TODO: Get user's phone number and send
-        pass
+        from app.models.whatsapp import WhatsAppConfig
+        from sqlalchemy import select
+        async with async_session() as db:
+            result = await db.execute(
+                select(WhatsAppConfig).where(WhatsAppConfig.user_id == alert.user_id, WhatsAppConfig.is_active.is_(True))
+            )
+            wa_config = result.scalar_one_or_none()
+            if wa_config and wa_config.phone_number:
+                msg = f"*TrackMe Alert*\n\n{alert.name}\nTriggered at ₹{value:,.2f}" if value else f"*TrackMe Alert*\n\n{alert.name} triggered"
+                await send_whatsapp_message(wa_config.phone_number, msg)
+
     elif channel == "email":
-        # TODO: Send email notification
-        pass
-    elif channel == "push":
-        # TODO: Send push notification
-        pass
+        pass  # Future: integrate with Resend or similar

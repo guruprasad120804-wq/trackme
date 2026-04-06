@@ -55,6 +55,8 @@ async def upload_cas(
             import_log.status = "completed"
             import_log.schemes_added = result.get("schemes_added", 0)
             import_log.transactions_added = result.get("transactions_added", 0)
+            import_log.errors = len(result.get("errors", []))
+            import_log.error_details = "; ".join(result.get("errors", [])) if result.get("errors") else None
             import_log.summary_json = result
         finally:
             os.unlink(temp_path)
@@ -63,13 +65,29 @@ async def upload_cas(
         import_log.status = "failed"
         import_log.error_details = str(e)
         import_log.errors = 1
+        result = None
 
     await db.commit()
+
+    if import_log.status == "failed":
+        return {
+            "import_id": str(import_log.id),
+            "status": "failed",
+            "error": import_log.error_details,
+            "schemes_added": 0,
+            "transactions_added": 0,
+            "folios_added": 0,
+            "holdings_updated": 0,
+        }
+
     return {
         "import_id": str(import_log.id),
         "status": import_log.status,
-        "schemes_added": import_log.schemes_added,
-        "transactions_added": import_log.transactions_added,
+        "schemes_added": result.get("schemes_added", 0) if result else 0,
+        "transactions_added": result.get("transactions_added", 0) if result else 0,
+        "folios_added": result.get("folios_added", 0) if result else 0,
+        "holdings_updated": result.get("holdings_updated", 0) if result else 0,
+        "errors": result.get("errors", []) if result else [],
     }
 
 
@@ -116,7 +134,9 @@ async def get_import_history(
 @router.post("/email/scan-now")
 async def trigger_email_scan(
     user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Trigger an immediate email scan for CAS statements."""
-    # TODO: Run inline when Celery is not available
-    return {"status": "email_scanning_not_available", "message": "Email scanning requires background workers. Coming soon."}
+    from app.tasks.email_tasks import _scan_user
+    result = await _scan_user(str(user.id), db)
+    return result

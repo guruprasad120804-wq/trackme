@@ -19,6 +19,7 @@ class AssetType(str, enum.Enum):
     NPS = "nps"
     PPF = "ppf"
     CRYPTO = "crypto"
+    INSURANCE = "insurance"
     OTHER = "other"
 
 

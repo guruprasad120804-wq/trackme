@@ -1,5 +1,7 @@
-"""CAS PDF parsing and data import service.
-Ported and enhanced from reference project — handles CAMS & KFintech CAS formats.
+"""MF aggregator portfolio data import service.
+
+Follows the same find-or-create pattern as cas_parser.py for
+Asset, FundHouse, Scheme, Folio, Holding, and Transaction records.
 """
 import uuid
 from datetime import date
@@ -15,7 +17,7 @@ from app.models.transaction import Transaction, TransactionType
 from app.models.mutual_fund import FundHouse, Scheme, Folio
 
 
-# Mapping casparser transaction types to our enum
+# Aggregator transaction type mapping (same codes as casparser)
 TRANSACTION_TYPE_MAP = {
     "PURCHASE": TransactionType.BUY,
     "PURCHASE_SIP": TransactionType.SIP,
@@ -32,17 +34,17 @@ TRANSACTION_TYPE_MAP = {
 }
 
 
-async def parse_and_import_cas(
+async def import_mf_portfolio(
     user_id: str,
-    pdf_path: str,
-    password: str,
+    portfolio_data: dict,
     db: AsyncSession,
 ) -> dict:
-    """Parse a CAS PDF and import all data into the database."""
-    import casparser
+    """Import mutual fund portfolio data from the aggregator API response.
 
+    The portfolio_data format matches the aggregator's response — same
+    structure as casparser dict output (folios → schemes → transactions).
+    """
     uid = uuid.UUID(user_id)
-    data = casparser.read_cas_pdf(pdf_path, password, output="dict")
 
     # Get or create default portfolio
     result = await db.execute(
@@ -54,10 +56,16 @@ async def parse_and_import_cas(
         db.add(portfolio)
         await db.flush()
 
-    stats = {"schemes_added": 0, "transactions_added": 0, "folios_added": 0, "holdings_updated": 0, "errors": []}
+    stats = {
+        "schemes_added": 0,
+        "transactions_added": 0,
+        "folios_added": 0,
+        "holdings_updated": 0,
+        "errors": [],
+    }
 
-    for folio_data in data.get("folios", []):
-        folio_number = folio_data.get("folio", "").strip()
+    for folio_data in portfolio_data.get("folios", []):
+        folio_number = str(folio_data.get("folio", "")).strip()
 
         for scheme_data in folio_data.get("schemes", []):
             try:
@@ -65,7 +73,7 @@ async def parse_and_import_cas(
                 isin = scheme_data.get("isin", "").strip() or None
                 scheme_name = scheme_data.get("scheme", "Unknown Scheme")
 
-                # Find or create fund house
+                # --- Find or create FundHouse ---
                 amc_name = folio_data.get("amc", "Unknown AMC")
                 result = await db.execute(select(FundHouse).where(FundHouse.name == amc_name))
                 fund_house = result.scalar_one_or_none()
@@ -74,7 +82,7 @@ async def parse_and_import_cas(
                     db.add(fund_house)
                     await db.flush()
 
-                # Find or create asset
+                # --- Find or create Asset (by amfi_code, then isin) ---
                 asset = None
                 if amfi_code:
                     result = await db.execute(select(Asset).where(Asset.amfi_code == amfi_code))
@@ -94,7 +102,7 @@ async def parse_and_import_cas(
                     await db.flush()
                     stats["schemes_added"] += 1
 
-                # Find or create scheme
+                # --- Find or create Scheme ---
                 result = await db.execute(select(Scheme).where(Scheme.asset_id == asset.id))
                 scheme = result.scalar_one_or_none()
                 if not scheme:
@@ -108,7 +116,7 @@ async def parse_and_import_cas(
                     db.add(scheme)
                     await db.flush()
 
-                # Find or create folio
+                # --- Find or create Folio ---
                 result = await db.execute(
                     select(Folio).where(Folio.user_id == uid, Folio.folio_number == folio_number)
                 )
@@ -118,13 +126,13 @@ async def parse_and_import_cas(
                         user_id=uid,
                         fund_house_id=fund_house.id,
                         folio_number=folio_number,
-                        pan=folio_data.get("PAN", ""),
+                        pan=folio_data.get("pan", ""),
                     )
                     db.add(folio)
                     await db.flush()
                     stats["folios_added"] += 1
 
-                # Find or create holding
+                # --- Find or create Holding ---
                 result = await db.execute(
                     select(Holding).where(
                         Holding.portfolio_id == portfolio.id,
@@ -142,29 +150,27 @@ async def parse_and_import_cas(
                     db.add(holding)
                     await db.flush()
 
-                # Update holding with valuation data
+                # --- Update holding from valuation data (authoritative) ---
                 valuation = scheme_data.get("valuation", {})
                 if valuation:
-                    nav_val = valuation.get("nav", 0)
-                    value_val = valuation.get("value", 0)
+                    nav = valuation.get("nav", 0)
+                    value = valuation.get("value", 0)
                     cost = valuation.get("cost", 0)
 
-                    if nav_val and nav_val > 0:
-                        holding.quantity = Decimal(str(value_val)) / Decimal(str(nav_val))
-                    else:
-                        holding.quantity = Decimal(0)
-                    holding.current_price = Decimal(str(nav_val))
-                    holding.current_value = Decimal(str(value_val))
+                    if nav and nav > 0:
+                        holding.quantity = Decimal(str(value)) / Decimal(str(nav))
+                    holding.current_price = Decimal(str(nav))
+                    holding.current_value = Decimal(str(value))
                     if cost:
                         holding.total_invested = Decimal(str(cost))
-                    if holding.quantity and holding.quantity > 0 and holding.total_invested and holding.total_invested > 0:
-                        holding.avg_cost = holding.total_invested / holding.quantity
                     if holding.total_invested and holding.total_invested > 0:
                         holding.total_gain = holding.current_value - holding.total_invested
-                        holding.total_gain_pct = (holding.total_gain / holding.total_invested) * 100
+                        holding.total_gain_pct = (
+                            holding.total_gain / holding.total_invested * 100
+                        )
                     stats["holdings_updated"] += 1
 
-                # Import transactions
+                # --- Import transactions (skip dupes via constraint) ---
                 for txn_data in scheme_data.get("transactions", []):
                     txn_type_str = txn_data.get("type", "MISC")
                     txn_type = TRANSACTION_TYPE_MAP.get(txn_type_str, TransactionType.OTHER)
@@ -186,10 +192,9 @@ async def parse_and_import_cas(
                         amount=abs(amount),
                         nav=nav,
                         stamp_duty=Decimal(str(txn_data.get("stamp_duty", 0))),
-                        source="cas_import",
+                        source="mf_aggregator",
                     )
 
-                    # Use savepoint to handle duplicate constraint violations gracefully
                     try:
                         async with db.begin_nested():
                             db.add(txn)

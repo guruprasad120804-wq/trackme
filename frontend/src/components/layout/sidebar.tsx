@@ -14,6 +14,7 @@ import {
   CreditCard,
   LogOut,
   TrendingUp,
+  Shield,
 } from "lucide-react";
 
 const navItems = [
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/portfolio", label: "Portfolio", icon: Briefcase },
   { href: "/transactions", label: "Transactions", icon: ArrowLeftRight },
   { href: "/alerts", label: "Alerts", icon: Bell },
+  { href: "/insurance", label: "Insurance", icon: Shield },
   { href: "/chat", label: "AI Assistant", icon: MessageCircle },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
@@ -69,11 +71,6 @@ export function Sidebar() {
             >
               <item.icon className={cn("h-4.5 w-4.5", isActive && "text-amber")} />
               {item.label}
-              {item.label === "Alerts" && (
-                <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-amber/20 text-[10px] font-bold text-amber">
-                  3
-                </span>
-              )}
             </Link>
           );
         })}

@@ -11,6 +11,9 @@ from app.models.subscription import Subscription, SubscriptionPlan, Subscription
 from app.models.chat import ChatConversation, ChatMessage
 from app.models.import_log import ImportLog, EmailConfig, ProcessedEmail
 from app.models.whatsapp import WhatsAppConfig
+from app.models.mf_connection import MFConnection
+from app.models.notification import Notification
+from app.models.insurance import InsurancePolicy
 
 __all__ = [
     "User",
@@ -24,4 +27,7 @@ __all__ = [
     "ChatConversation", "ChatMessage",
     "ImportLog", "EmailConfig", "ProcessedEmail",
     "WhatsAppConfig",
+    "MFConnection",
+    "Notification",
+    "InsurancePolicy",
 ]

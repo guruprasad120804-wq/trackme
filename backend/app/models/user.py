@@ -29,6 +29,9 @@ class User(Base):
     broker_connections: Mapped[list["BrokerConnection"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     email_config: Mapped["EmailConfig | None"] = relationship(back_populates="user", uselist=False)
     whatsapp_config: Mapped["WhatsAppConfig | None"] = relationship(back_populates="user", uselist=False)
+    mf_connection: Mapped["MFConnection | None"] = relationship(back_populates="user", uselist=False)
+    notifications: Mapped[list["Notification"]] = relationship(back_populates="user", cascade="all, delete-orphan")
+    insurance_policies: Mapped[list["InsurancePolicy"]] = relationship(back_populates="user", cascade="all, delete-orphan")
     import_logs: Mapped[list["ImportLog"]] = relationship(back_populates="user", cascade="all, delete-orphan")
 
 
@@ -40,3 +43,6 @@ from app.models.chat import ChatConversation  # noqa: E402
 from app.models.broker import BrokerConnection  # noqa: E402
 from app.models.import_log import EmailConfig, ImportLog  # noqa: E402
 from app.models.whatsapp import WhatsAppConfig  # noqa: E402
+from app.models.mf_connection import MFConnection  # noqa: E402
+from app.models.notification import Notification  # noqa: E402
+from app.models.insurance import InsurancePolicy  # noqa: E402

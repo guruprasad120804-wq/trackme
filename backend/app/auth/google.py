@@ -15,6 +15,10 @@ SCOPES = [
     "profile",
 ]
 
+GMAIL_SCOPES = [
+    "https://www.googleapis.com/auth/gmail.readonly",
+]
+
 
 def get_google_auth_url(redirect_uri: str, state: str | None = None) -> str:
     params = {
@@ -31,8 +35,24 @@ def get_google_auth_url(redirect_uri: str, state: str | None = None) -> str:
     return f"{GOOGLE_AUTH_URL}?{query}"
 
 
+def get_gmail_auth_url(redirect_uri: str, state: str | None = None) -> str:
+    """Generate OAuth URL requesting gmail.readonly scope."""
+    params = {
+        "client_id": settings.google_client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": " ".join(GMAIL_SCOPES),
+        "access_type": "offline",
+        "prompt": "consent",
+    }
+    if state:
+        params["state"] = state
+    query = "&".join(f"{k}={v}" for k, v in params.items())
+    return f"{GOOGLE_AUTH_URL}?{query}"
+
+
 async def exchange_code_for_tokens(code: str, redirect_uri: str) -> dict:
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(GOOGLE_TOKEN_URL, data={
             "code": code,
             "client_id": settings.google_client_id,
@@ -45,7 +65,7 @@ async def exchange_code_for_tokens(code: str, redirect_uri: str) -> dict:
 
 
 async def get_google_user_info(access_token: str) -> dict:
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.get(
             GOOGLE_USERINFO_URL,
             headers={"Authorization": f"Bearer {access_token}"},

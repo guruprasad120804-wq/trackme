@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getAlerts, getAlertHistory, toggleAlert, deleteAlert } from "@/lib/api";
+import { CreateAlertModal } from "@/components/modals/create-alert-modal";
 
 const CONDITION_ICONS: Record<string, any> = {
   price_above: TrendingUp,
@@ -43,6 +44,7 @@ const CONDITION_LABELS: Record<string, string> = {
 export default function AlertsPage() {
   const queryClient = useQueryClient();
   const [tab, setTab] = useState<"active" | "history">("active");
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   const { data: alerts } = useQuery({
     queryKey: ["alerts"],
@@ -89,7 +91,7 @@ export default function AlertsPage() {
             ))}
           </div>
 
-          <Button className="bg-amber hover:bg-amber-dark text-navy font-semibold" size="sm">
+          <Button onClick={() => setShowCreateModal(true)} className="bg-amber hover:bg-amber-dark text-navy font-semibold" size="sm">
             <Plus className="h-4 w-4 mr-1" />
             Create Alert
           </Button>
@@ -201,6 +203,8 @@ export default function AlertsPage() {
           </div>
         )}
       </div>
+
+      <CreateAlertModal open={showCreateModal} onOpenChange={setShowCreateModal} />
     </div>
   );
 }

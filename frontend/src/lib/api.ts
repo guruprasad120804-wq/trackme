@@ -93,6 +93,31 @@ export const addManualTransaction = (data: Record<string, unknown>) =>
 export const getImportHistory = () => api.get("/import/history");
 export const triggerEmailScan = () => api.post("/import/email/scan-now");
 
+// Notifications
+export const getNotifications = () => api.get("/notifications/");
+export const getUnreadCount = () => api.get("/notifications/unread-count");
+export const markNotificationRead = (id: string) => api.patch(`/notifications/${id}/read`);
+export const markAllNotificationsRead = () => api.post("/notifications/mark-all-read");
+
+// Asset Search
+export const searchAssets = (q: string) => api.get("/assets/search", { params: { q } });
+
+// MF Aggregator (PAN + OTP)
+export const startMFConnect = (pan: string) =>
+  api.post("/mf/connect/start", { pan });
+export const verifyMFConnect = (sessionId: string, otp: string) =>
+  api.post("/mf/connect/verify", { session_id: sessionId, otp });
+export const syncMF = () => api.post("/mf/sync");
+export const getMFConnection = () => api.get("/mf/connection");
+
+// Insurance
+export const getInsurancePolicies = () => api.get("/insurance/");
+export const createInsurancePolicy = (data: Record<string, unknown>) =>
+  api.post("/insurance/", data);
+export const updateInsurancePolicy = (id: string, data: Record<string, unknown>) =>
+  api.patch(`/insurance/${id}`, data);
+export const deleteInsurancePolicy = (id: string) => api.delete(`/insurance/${id}`);
+
 // Settings
 export const getEmailConfig = () => api.get("/settings/email");
 export const saveEmailConfig = (data: Record<string, unknown>) =>
@@ -102,3 +127,10 @@ export const saveWhatsAppConfig = (data: Record<string, unknown>) =>
   api.post("/settings/whatsapp", data);
 export const updateProfile = (data: Record<string, unknown>) =>
   api.patch("/settings/profile", data);
+
+// Gmail Integration
+export const getEmailOAuthUrl = () => api.get("/settings/email/oauth/authorize");
+export const saveEmailOAuthCallback = (code: string, redirectUri: string) =>
+  api.post("/settings/email/oauth/callback", { code, redirect_uri: redirectUri });
+export const saveCASPassword = (password: string) =>
+  api.post("/settings/email/cas-password", { password });

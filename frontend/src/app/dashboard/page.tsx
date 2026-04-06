@@ -15,14 +15,9 @@ import {
 import { Header } from "@/components/layout/header";
 import { StatCard } from "@/components/common/stat-card";
 import { getDashboardSummary, getHoldingsSummary, getTopMovers } from "@/lib/api";
-import { cn, formatCurrency, formatPercent, gainColor, compactNumber } from "@/lib/utils";
+import { cn, formatCurrency, formatPercent, gainColor } from "@/lib/utils";
 import {
   ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
   PieChart as RePieChart,
   Pie,
   Cell,
@@ -46,26 +41,11 @@ export default function DashboardPage() {
     queryFn: () => getTopMovers().then((r) => r.data),
   });
 
-  // Demo data for chart when no real data
-  const performanceData = [
-    { month: "Jan", value: 500000, invested: 450000 },
-    { month: "Feb", value: 520000, invested: 475000 },
-    { month: "Mar", value: 510000, invested: 500000 },
-    { month: "Apr", value: 560000, invested: 525000 },
-    { month: "May", value: 590000, invested: 550000 },
-    { month: "Jun", value: 620000, invested: 575000 },
-  ];
-
-  const allocationData = summary?.asset_type_breakdown?.map((b: any, i: number) => ({
+  const allocationData = summary?.asset_type_breakdown?.length ? summary.asset_type_breakdown.map((b: any, i: number) => ({
     name: b.type.replace("_", " "),
     value: parseFloat(b.allocation_pct),
     color: PIE_COLORS[i % PIE_COLORS.length],
-  })) || [
-    { name: "Mutual Funds", value: 55, color: PIE_COLORS[0] },
-    { name: "Stocks", value: 30, color: PIE_COLORS[1] },
-    { name: "ETFs", value: 10, color: PIE_COLORS[2] },
-    { name: "Others", value: 5, color: PIE_COLORS[3] },
-  ];
+  })) : [];
 
   return (
     <div className="min-h-screen">
@@ -114,82 +94,34 @@ export default function DashboardPage() {
             transition={{ delay: 0.1 }}
             className="lg:col-span-2 rounded-xl border border-border bg-card p-6"
           >
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-sm font-semibold text-foreground">Portfolio Performance</h3>
-                <p className="text-xs text-muted-foreground mt-0.5">Invested vs Current Value</p>
-              </div>
-              <div className="flex gap-2">
-                {["1M", "3M", "6M", "1Y", "ALL"].map((period) => (
-                  <button
-                    key={period}
-                    className={cn(
-                      "px-3 py-1 text-xs font-medium rounded-md transition-colors",
-                      period === "6M"
-                        ? "bg-amber/15 text-amber"
-                        : "text-muted-foreground hover:bg-secondary"
-                    )}
-                  >
-                    {period}
-                  </button>
-                ))}
-              </div>
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-foreground">Portfolio Performance</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">Invested vs Current Value</p>
             </div>
 
-            <ResponsiveContainer width="100%" height={280}>
-              <AreaChart data={performanceData}>
-                <defs>
-                  <linearGradient id="valueGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#F5A623" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#F5A623" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="investedGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis
-                  dataKey="month"
-                  stroke="#94A3B8"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis
-                  stroke="#94A3B8"
-                  fontSize={11}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(v) => compactNumber(v)}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#162036",
-                    border: "1px solid #1E3A5F",
-                    borderRadius: "8px",
-                    color: "#F1F5F9",
-                    fontSize: "12px",
-                  }}
-                  formatter={(value) => [formatCurrency(value as number), ""]}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="invested"
-                  stroke="#3B82F6"
-                  strokeWidth={2}
-                  fill="url(#investedGrad)"
-                  name="Invested"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#F5A623"
-                  strokeWidth={2}
-                  fill="url(#valueGrad)"
-                  name="Current Value"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            {summary?.total_holdings > 0 ? (
+              <div className="flex items-center justify-center h-[280px] text-center">
+                <div>
+                  <BarChart3 className="h-10 w-10 text-amber/30 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-foreground">
+                    {formatCurrency(summary.current_value)} portfolio value
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Historical performance chart coming soon
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[280px] text-center">
+                <div>
+                  <TrendingUp className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">No portfolio data yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Import your CAS to see performance trends
+                  </p>
+                </div>
+              </div>
+            )}
           </motion.div>
 
           {/* Asset Allocation Pie */}
@@ -201,38 +133,50 @@ export default function DashboardPage() {
           >
             <h3 className="text-sm font-semibold text-foreground mb-4">Asset Allocation</h3>
 
-            <ResponsiveContainer width="100%" height={200}>
-              <RePieChart>
-                <Pie
-                  data={allocationData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={55}
-                  outerRadius={80}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {allocationData.map((entry: any, i: number) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-              </RePieChart>
-            </ResponsiveContainer>
+            {allocationData.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <RePieChart>
+                    <Pie
+                      data={allocationData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={55}
+                      outerRadius={80}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {allocationData.map((entry: any, i: number) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                  </RePieChart>
+                </ResponsiveContainer>
 
-            <div className="space-y-2 mt-4">
-              {allocationData.map((item: any) => (
-                <div key={item.name} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-muted-foreground capitalize">{item.name}</span>
-                  </div>
-                  <span className="font-medium text-foreground">{item.value.toFixed(1)}%</span>
+                <div className="space-y-2 mt-4">
+                  {allocationData.map((item: any) => (
+                    <div key={item.name} className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="text-muted-foreground capitalize">{item.name}</span>
+                      </div>
+                      <span className="font-medium text-foreground">{item.value.toFixed(1)}%</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            ) : (
+              <div className="flex items-center justify-center h-[280px] text-center">
+                <div>
+                  <PieChart className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">No allocation data</p>
+                  <p className="text-xs text-muted-foreground mt-1">Import holdings to see breakdown</p>
+                </div>
+              </div>
+            )}
           </motion.div>
         </div>
 
