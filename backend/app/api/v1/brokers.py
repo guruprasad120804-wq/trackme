@@ -129,6 +129,8 @@ async def broker_oauth_callback(
     if not code:
         raise HTTPException(status_code=400, detail="Authorization code required")
 
+    logger.info(f"Broker callback {broker_type}: code={code[:20]}... redirect_uri={body.get('redirect_uri', 'default')}")
+
     settings = get_settings()
     redirect_uri = body.get("redirect_uri", f"{settings.frontend_url}/settings/brokers/callback")
 

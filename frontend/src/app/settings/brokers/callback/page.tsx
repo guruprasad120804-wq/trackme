@@ -11,7 +11,7 @@ function BrokerCallbackHandler() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const code = searchParams.get("code") || searchParams.get("auth_code") || searchParams.get("request_token");
+    const code = searchParams.get("auth_code") || searchParams.get("request_token") || searchParams.get("code");
     const state = searchParams.get("state") || searchParams.get("broker");
     if (!code || !state) {
       setError("Missing authorization code or broker type");
