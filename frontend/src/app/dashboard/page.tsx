@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { StatCard } from "@/components/common/stat-card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getDashboardSummary, getHoldingsSummary, getTopMovers } from "@/lib/api";
 import { cn, formatCurrency, formatPercent, gainColor } from "@/lib/utils";
 import {
@@ -31,12 +32,12 @@ export default function DashboardPage() {
     queryFn: () => getDashboardSummary().then((r) => r.data),
   });
 
-  const { data: holdings } = useQuery({
+  const { data: holdings, isLoading: holdingsLoading } = useQuery({
     queryKey: ["holdings-summary"],
     queryFn: () => getHoldingsSummary().then((r) => r.data),
   });
 
-  const { data: topMovers } = useQuery({
+  const { data: topMovers, isLoading: moversLoading } = useQuery({
     queryKey: ["top-movers"],
     queryFn: () => getTopMovers().then((r) => r.data),
   });
@@ -53,37 +54,27 @@ export default function DashboardPage() {
 
       <div className="p-6 space-y-6">
         {/* Summary Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
-        >
-          <StatCard
-            title="Total Invested"
-            value={summary?.total_invested || 0}
-            icon={Wallet}
-          />
-          <StatCard
-            title="Current Value"
-            value={summary?.current_value || 0}
-            change={summary ? parseFloat(summary.total_gain_pct) : undefined}
-            changeLabel="all time"
-            icon={BarChart3}
-          />
-          <StatCard
-            title="Total Gain/Loss"
-            value={summary?.total_gain || 0}
-            change={summary ? parseFloat(summary.total_gain_pct) : undefined}
-            icon={summary?.total_gain >= 0 ? TrendingUp : TrendingDown}
-          />
-          <StatCard
-            title="Day Change"
-            value={summary?.day_change || 0}
-            change={summary ? parseFloat(summary.day_change_pct) : undefined}
-            changeLabel="today"
-            icon={Activity}
-          />
-        </motion.div>
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card p-5">
+                <Skeleton className="h-3 w-24 mb-4" />
+                <Skeleton className="h-7 w-28" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+          >
+            <StatCard title="Total Invested" value={summary?.total_invested || 0} icon={Wallet} />
+            <StatCard title="Current Value" value={summary?.current_value || 0} change={summary ? parseFloat(summary.total_gain_pct) : undefined} changeLabel="all time" icon={BarChart3} />
+            <StatCard title="Total Gain/Loss" value={summary?.total_gain || 0} change={summary ? parseFloat(summary.total_gain_pct) : undefined} icon={summary?.total_gain >= 0 ? TrendingUp : TrendingDown} />
+            <StatCard title="Day Change" value={summary?.day_change || 0} change={summary ? parseFloat(summary.day_change_pct) : undefined} changeLabel="today" icon={Activity} />
+          </motion.div>
+        )}
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -195,26 +186,29 @@ export default function DashboardPage() {
             </div>
 
             <div className="divide-y divide-border">
-              {(holdings || []).slice(0, 6).map((h: any) => (
-                <div key={h.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-secondary/50 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{h.asset_name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {h.asset_type} {h.symbol ? `· ${h.symbol}` : ""}
-                    </p>
+              {holdingsLoading ? (
+                [...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-center justify-between px-5 py-3.5">
+                    <div><Skeleton className="h-4 w-32 mb-1.5" /><Skeleton className="h-3 w-20" /></div>
+                    <div className="text-right"><Skeleton className="h-4 w-24 mb-1.5" /><Skeleton className="h-3 w-16 ml-auto" /></div>
                   </div>
-                  <div className="text-right ml-4">
-                    <p className="text-sm font-semibold text-foreground">
-                      {formatCurrency(h.current_value)}
-                    </p>
-                    <p className={cn("text-xs font-medium mt-0.5", gainColor(h.gain_pct))}>
-                      {formatPercent(h.gain_pct)}
-                    </p>
+                ))
+              ) : (holdings || []).length > 0 ? (
+                (holdings || []).slice(0, 6).map((h: any) => (
+                  <div key={h.id} className="flex items-center justify-between px-5 py-3.5 hover:bg-secondary/50 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{h.asset_name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {h.asset_type} {h.symbol ? `· ${h.symbol}` : ""}
+                      </p>
+                    </div>
+                    <div className="text-right ml-4">
+                      <p className="text-sm font-semibold text-foreground">{formatCurrency(h.current_value)}</p>
+                      <p className={cn("text-xs font-medium mt-0.5", gainColor(h.gain_pct))}>{formatPercent(h.gain_pct)}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
-
-              {(!holdings || holdings.length === 0) && (
+                ))
+              ) : (
                 <div className="p-10 text-center">
                   <PieChart className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
                   <p className="text-sm text-muted-foreground">No holdings yet</p>
@@ -236,35 +230,29 @@ export default function DashboardPage() {
             </div>
 
             <div className="divide-y divide-border">
-              {(topMovers || []).map((m: any) => (
-                <div key={m.asset_name} className="flex items-center justify-between px-5 py-3.5">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "flex h-8 w-8 items-center justify-center rounded-lg",
-                        m.direction === "up" ? "bg-emerald-500/10" : "bg-red-500/10"
-                      )}
-                    >
-                      {m.direction === "up" ? (
-                        <ArrowUpRight className="h-4 w-4 text-emerald-400" />
-                      ) : (
-                        <ArrowDownRight className="h-4 w-4 text-red-400" />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{m.asset_name}</p>
-                      {m.symbol && (
-                        <p className="text-xs text-muted-foreground">{m.symbol}</p>
-                      )}
-                    </div>
+              {moversLoading ? (
+                [...Array(4)].map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 px-5 py-3.5">
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                    <div><Skeleton className="h-4 w-24 mb-1" /><Skeleton className="h-3 w-14" /></div>
                   </div>
-                  <span className={cn("text-sm font-semibold", gainColor(m.change_pct))}>
-                    {formatPercent(m.change_pct)}
-                  </span>
-                </div>
-              ))}
-
-              {(!topMovers || topMovers.length === 0) && (
+                ))
+              ) : (topMovers || []).length > 0 ? (
+                (topMovers || []).map((m: any) => (
+                  <div key={m.asset_name} className="flex items-center justify-between px-5 py-3.5">
+                    <div className="flex items-center gap-3">
+                      <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", m.direction === "up" ? "bg-emerald-500/10" : "bg-red-500/10")}>
+                        {m.direction === "up" ? <ArrowUpRight className="h-4 w-4 text-emerald-400" /> : <ArrowDownRight className="h-4 w-4 text-red-400" />}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{m.asset_name}</p>
+                        {m.symbol && <p className="text-xs text-muted-foreground">{m.symbol}</p>}
+                      </div>
+                    </div>
+                    <span className={cn("text-sm font-semibold", gainColor(m.change_pct))}>{formatPercent(m.change_pct)}</span>
+                  </div>
+                ))
+              ) : (
                 <div className="p-8 text-center">
                   <Activity className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
                   <p className="text-xs text-muted-foreground">No market data yet</p>

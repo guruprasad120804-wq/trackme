@@ -8,6 +8,7 @@ import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatCurrency, formatDate, gainColor } from "@/lib/utils";
 import { getTransactions } from "@/lib/api";
 
@@ -72,7 +73,18 @@ export default function TransactionsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {transactions.map((t: any, i: number) => (
+              {isLoading && [...Array(8)].map((_, i) => (
+                <tr key={i}>
+                  <td className="px-5 py-3"><Skeleton className="h-4 w-20" /></td>
+                  <td className="px-5 py-3"><Skeleton className="h-4 w-28" /></td>
+                  <td className="px-5 py-3"><Skeleton className="h-5 w-14 rounded-full" /></td>
+                  <td className="px-5 py-3 text-right"><Skeleton className="h-4 w-14 ml-auto" /></td>
+                  <td className="px-5 py-3 text-right"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                  <td className="px-5 py-3 text-right"><Skeleton className="h-4 w-20 ml-auto" /></td>
+                  <td className="px-5 py-3"><Skeleton className="h-3 w-16" /></td>
+                </tr>
+              ))}
+              {!isLoading && transactions.map((t: any, i: number) => (
                 <motion.tr
                   key={t.id}
                   initial={{ opacity: 0 }}

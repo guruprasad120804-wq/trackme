@@ -6,6 +6,7 @@ import { Bell, Search, Plus, Check } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getUnreadCount, getNotifications, markAllNotificationsRead, markNotificationRead } from "@/lib/api";
 
 interface HeaderProps {
@@ -25,7 +26,7 @@ export function Header({ title, subtitle, user }: HeaderProps) {
     refetchInterval: 30000,
   });
 
-  const { data: notifications } = useQuery({
+  const { data: notifications, isLoading: notifsLoading } = useQuery({
     queryKey: ["notifications"],
     queryFn: () => getNotifications().then((r) => r.data),
     enabled: showNotifs,
@@ -115,7 +116,16 @@ export function Header({ title, subtitle, user }: HeaderProps) {
               </div>
 
               <div className="max-h-72 overflow-y-auto divide-y divide-border">
-                {(notifications || []).length === 0 ? (
+                {notifsLoading ? (
+                  <div className="p-3 space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="flex gap-2 px-1">
+                        <Skeleton className="h-2 w-2 rounded-full mt-1.5 shrink-0" />
+                        <div className="flex-1"><Skeleton className="h-3 w-32 mb-1.5" /><Skeleton className="h-2.5 w-full" /><Skeleton className="h-2 w-20 mt-1" /></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (notifications || []).length === 0 ? (
                   <div className="p-6 text-center">
                     <Bell className="h-6 w-6 text-muted-foreground/30 mx-auto mb-2" />
                     <p className="text-xs text-muted-foreground">No notifications</p>

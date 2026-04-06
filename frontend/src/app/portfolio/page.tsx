@@ -7,6 +7,7 @@ import { Briefcase, Search, Filter, ArrowUpDown } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatCurrency, formatPercent, formatNumber, gainColor } from "@/lib/utils";
 import { getPortfolios, getHoldingsSummary } from "@/lib/api";
 
@@ -125,7 +126,19 @@ export default function PortfolioPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {filteredHoldings.map((h: any, i: number) => (
+              {isLoading && [...Array(6)].map((_, i) => (
+                <tr key={i}>
+                  <td className="px-5 py-3.5"><Skeleton className="h-4 w-32 mb-1" /><Skeleton className="h-3 w-20" /></td>
+                  <td className="px-5 py-3.5 text-right"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                  <td className="px-5 py-3.5 text-right"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                  <td className="px-5 py-3.5 text-right"><Skeleton className="h-4 w-20 ml-auto" /></td>
+                  <td className="px-5 py-3.5 text-right"><Skeleton className="h-4 w-20 ml-auto" /></td>
+                  <td className="px-5 py-3.5 text-right"><Skeleton className="h-4 w-20 ml-auto" /></td>
+                  <td className="px-5 py-3.5 text-right"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                  <td className="px-5 py-3.5 text-right"><Skeleton className="h-4 w-12 ml-auto" /></td>
+                </tr>
+              ))}
+              {!isLoading && filteredHoldings.map((h: any, i: number) => (
                 <motion.tr
                   key={h.id}
                   initial={{ opacity: 0 }}

@@ -17,6 +17,7 @@ import {
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn, formatCurrency } from "@/lib/utils";
 import { getAlerts, getAlertHistory, toggleAlert, deleteAlert } from "@/lib/api";
 import { CreateAlertModal } from "@/components/modals/create-alert-modal";
@@ -46,7 +47,7 @@ export default function AlertsPage() {
   const [tab, setTab] = useState<"active" | "history">("active");
   const [showCreateModal, setShowCreateModal] = useState(false);
 
-  const { data: alerts } = useQuery({
+  const { data: alerts, isLoading: alertsLoading } = useQuery({
     queryKey: ["alerts"],
     queryFn: () => getAlerts().then((r) => r.data),
   });
@@ -165,7 +166,21 @@ export default function AlertsPage() {
               );
             })}
 
-            {(!alerts || alerts.length === 0) && (
+            {alertsLoading && (
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="rounded-xl border border-border bg-card p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="h-10 w-10 rounded-lg" />
+                      <div><Skeleton className="h-4 w-36 mb-2" /><Skeleton className="h-3 w-24" /></div>
+                    </div>
+                    <Skeleton className="h-6 w-12 rounded-full" />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!alertsLoading && (!alerts || alerts.length === 0) && (
               <div className="rounded-xl border border-border bg-card p-12 text-center">
                 <Bell className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">No alerts set up yet</p>
