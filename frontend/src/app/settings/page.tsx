@@ -184,7 +184,8 @@ function SettingsContent() {
   });
 
   const [angelCreds, setAngelCreds] = useState({ client_code: "", pin: "", totp: "" });
-  const [dhanToken, setDhanToken] = useState("");
+  const [dhanCreds, setDhanCreds] = useState({ dhan_client_id: "", pin: "", totp: "", access_token: "" });
+  const [dhanMode, setDhanMode] = useState<"totp" | "token">("totp");
 
   const syncBrokerMutation = useMutation({
     mutationFn: (connectionId: string) => syncBrokerHoldings(connectionId),
@@ -211,9 +212,11 @@ function SettingsContent() {
   });
 
   const dhanMutation = useMutation({
-    mutationFn: () => saveBrokerCredentials("dhan", { access_token: dhanToken }),
+    mutationFn: () => saveBrokerCredentials("dhan", dhanMode === "totp"
+      ? { dhan_client_id: dhanCreds.dhan_client_id, pin: dhanCreds.pin, totp: dhanCreds.totp }
+      : { access_token: dhanCreds.access_token }),
     onSuccess: () => {
-      setDhanToken("");
+      setDhanCreds({ dhan_client_id: "", pin: "", totp: "", access_token: "" });
       queryClient.invalidateQueries({ queryKey: ["broker-connections"] });
     },
   });
@@ -457,31 +460,71 @@ function SettingsContent() {
                               </div>
                             )}
 
-                            {/* Dhan access token form */}
+                            {/* Dhan credentials form */}
                             {broker.type === "dhan" && broker.auth_type === "credentials_form" && !isConnected && (
                               <div className="mt-3 space-y-2">
-                                <p className="text-[10px] text-muted-foreground">
-                                  Generate an access token from <a href="https://web.dhan.co" target="_blank" rel="noopener noreferrer" className="text-amber hover:underline">web.dhan.co</a> and paste it below
-                                </p>
-                                <Input
-                                  className="bg-secondary border-border text-xs"
-                                  type="password"
-                                  placeholder="Paste your Dhan access token"
-                                  value={dhanToken}
-                                  onChange={(e) => setDhanToken(e.target.value)}
-                                />
-                                <Button
-                                  size="sm"
-                                  className="bg-amber hover:bg-amber-dark text-navy font-semibold w-full"
-                                  onClick={() => dhanMutation.mutate()}
-                                  disabled={!dhanToken || dhanMutation.isPending}
-                                >
-                                  {dhanMutation.isPending ? (
-                                    <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Connecting...</>
-                                  ) : (
-                                    "Connect"
-                                  )}
-                                </Button>
+                                <div className="flex gap-2 mb-2">
+                                  <button
+                                    className={cn("text-[10px] px-2 py-1 rounded", dhanMode === "totp" ? "bg-amber/15 text-amber" : "text-muted-foreground")}
+                                    onClick={() => setDhanMode("totp")}
+                                  >Login with TOTP</button>
+                                  <button
+                                    className={cn("text-[10px] px-2 py-1 rounded", dhanMode === "token" ? "bg-amber/15 text-amber" : "text-muted-foreground")}
+                                    onClick={() => setDhanMode("token")}
+                                  >Paste Token</button>
+                                </div>
+                                {dhanMode === "totp" ? (
+                                  <>
+                                    <Input
+                                      className="bg-secondary border-border text-xs"
+                                      placeholder="Dhan Client ID"
+                                      value={dhanCreds.dhan_client_id}
+                                      onChange={(e) => setDhanCreds(p => ({ ...p, dhan_client_id: e.target.value }))}
+                                    />
+                                    <Input
+                                      className="bg-secondary border-border text-xs"
+                                      type="password"
+                                      placeholder="PIN"
+                                      value={dhanCreds.pin}
+                                      onChange={(e) => setDhanCreds(p => ({ ...p, pin: e.target.value }))}
+                                    />
+                                    <Input
+                                      className="bg-secondary border-border text-xs"
+                                      placeholder="TOTP (from authenticator app)"
+                                      value={dhanCreds.totp}
+                                      onChange={(e) => setDhanCreds(p => ({ ...p, totp: e.target.value }))}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      className="bg-amber hover:bg-amber-dark text-navy font-semibold w-full"
+                                      onClick={() => dhanMutation.mutate()}
+                                      disabled={!dhanCreds.dhan_client_id || !dhanCreds.pin || !dhanCreds.totp || dhanMutation.isPending}
+                                    >
+                                      {dhanMutation.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Connecting...</> : "Connect"}
+                                    </Button>
+                                  </>
+                                ) : (
+                                  <>
+                                    <p className="text-[10px] text-muted-foreground">
+                                      Generate from <a href="https://web.dhan.co" target="_blank" rel="noopener noreferrer" className="text-amber hover:underline">web.dhan.co</a> (valid 24h)
+                                    </p>
+                                    <Input
+                                      className="bg-secondary border-border text-xs"
+                                      type="password"
+                                      placeholder="Paste access token"
+                                      value={dhanCreds.access_token}
+                                      onChange={(e) => setDhanCreds(p => ({ ...p, access_token: e.target.value }))}
+                                    />
+                                    <Button
+                                      size="sm"
+                                      className="bg-amber hover:bg-amber-dark text-navy font-semibold w-full"
+                                      onClick={() => dhanMutation.mutate()}
+                                      disabled={!dhanCreds.access_token || dhanMutation.isPending}
+                                    >
+                                      {dhanMutation.isPending ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Connecting...</> : "Connect"}
+                                    </Button>
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
