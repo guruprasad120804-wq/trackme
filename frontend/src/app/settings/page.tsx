@@ -16,6 +16,8 @@ import {
   Loader2,
   RefreshCw,
   CheckCircle2,
+  LinkIcon,
+  Trash2,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Button } from "@/components/ui/button";
@@ -35,10 +37,17 @@ import {
   triggerEmailScan,
   getEmailOAuthUrl,
   saveCASPassword,
+  getAvailableBrokers,
+  getBrokerConnections,
+  getBrokerOAuthUrl,
+  syncBrokerHoldings,
+  disconnectBroker,
+  saveBrokerCredentials,
 } from "@/lib/api";
 
 const TABS = [
   { id: "profile", label: "Profile", icon: User },
+  { id: "brokers", label: "Brokers", icon: LinkIcon },
   { id: "import", label: "Import Data", icon: Upload },
   { id: "email", label: "Email Scanning", icon: Mail },
   { id: "whatsapp", label: "WhatsApp", icon: MessageCircle },
@@ -161,6 +170,54 @@ function SettingsContent() {
     },
   });
 
+  // --- Broker Connect ---
+  const { data: availableBrokers } = useQuery({
+    queryKey: ["available-brokers"],
+    queryFn: () => getAvailableBrokers().then((r) => r.data),
+    enabled: tab === "brokers",
+  });
+
+  const { data: brokerConnections, refetch: refetchBrokerConns } = useQuery({
+    queryKey: ["broker-connections"],
+    queryFn: () => getBrokerConnections().then((r) => r.data),
+    enabled: tab === "brokers",
+  });
+
+  const [angelCreds, setAngelCreds] = useState({ client_code: "", pin: "", totp: "" });
+
+  const syncBrokerMutation = useMutation({
+    mutationFn: (connectionId: string) => syncBrokerHoldings(connectionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["broker-connections"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["holdings-summary"] });
+    },
+  });
+
+  const disconnectBrokerMutation = useMutation({
+    mutationFn: (connectionId: string) => disconnectBroker(connectionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["broker-connections"] });
+    },
+  });
+
+  const angelOneMutation = useMutation({
+    mutationFn: () => saveBrokerCredentials("angel_one", angelCreds),
+    onSuccess: () => {
+      setAngelCreds({ client_code: "", pin: "", totp: "" });
+      queryClient.invalidateQueries({ queryKey: ["broker-connections"] });
+    },
+  });
+
+  const handleConnectBroker = async (brokerType: string) => {
+    try {
+      const res = await getBrokerOAuthUrl(brokerType);
+      window.location.href = res.data.url;
+    } catch {
+      // OAuth URL fetch failed
+    }
+  };
+
   const handleConnectGmail = async () => {
     try {
       const res = await getEmailOAuthUrl();
@@ -252,6 +309,149 @@ function SettingsContent() {
                       )}
                     </Button>
                   </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Brokers */}
+            {tab === "brokers" && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                {/* Connected Brokers */}
+                {brokerConnections && brokerConnections.length > 0 && (
+                  <div className="rounded-xl border border-border bg-card p-6">
+                    <h3 className="text-sm font-semibold text-foreground mb-4">Connected Brokers</h3>
+                    <div className="space-y-3">
+                      {brokerConnections.map((conn: any) => (
+                        <div key={conn.id} className="flex items-center justify-between p-3 bg-secondary/30 rounded-lg">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-foreground">{conn.broker_name}</span>
+                              <Badge variant="outline" className={cn(
+                                "text-[10px]",
+                                conn.status === "active" ? "border-emerald-500/30 text-emerald-400" : "border-red-500/30 text-red-400"
+                              )}>
+                                {conn.status}
+                              </Badge>
+                            </div>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              {conn.last_synced ? `Last synced: ${new Date(conn.last_synced).toLocaleString()}` : "Never synced"}
+                            </p>
+                            {conn.sync_error && <p className="text-[10px] text-red-400">{conn.sync_error}</p>}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => syncBrokerMutation.mutate(conn.id)}
+                              disabled={syncBrokerMutation.isPending}
+                            >
+                              {syncBrokerMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                              onClick={() => disconnectBrokerMutation.mutate(conn.id)}
+                              disabled={disconnectBrokerMutation.isPending}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Available Brokers */}
+                <div className="rounded-xl border border-border bg-card p-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <LinkIcon className="h-5 w-5 text-amber" />
+                    <h3 className="text-sm font-semibold text-foreground">Connect a Broker</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Link your stock broker to automatically import holdings. Your credentials are encrypted and never stored as plain text.
+                  </p>
+
+                  {!availableBrokers || availableBrokers.length === 0 ? (
+                    <div className="text-center py-8">
+                      <LinkIcon className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                      <p className="text-sm text-muted-foreground">No brokers configured yet</p>
+                      <p className="text-xs text-muted-foreground mt-1">Broker API credentials need to be set up by the admin</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {availableBrokers.map((broker: any) => {
+                        const isConnected = brokerConnections?.some((c: any) => c.broker_type === broker.type);
+                        return (
+                          <div
+                            key={broker.type}
+                            className={cn(
+                              "rounded-lg border p-4 transition-colors",
+                              isConnected ? "border-emerald-500/30 bg-emerald-500/5" : "border-border hover:border-amber/30"
+                            )}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-foreground">{broker.name}</p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  {broker.auth_type === "credentials_form" ? "API Key + TOTP" : "OAuth Connect"}
+                                </p>
+                              </div>
+                              {isConnected ? (
+                                <Badge className="bg-emerald-500/15 text-emerald-400 border-none text-[10px]">Connected</Badge>
+                              ) : broker.auth_type === "credentials_form" ? null : (
+                                <Button
+                                  size="sm"
+                                  className="bg-amber hover:bg-amber-dark text-navy font-semibold"
+                                  onClick={() => handleConnectBroker(broker.type)}
+                                >
+                                  Connect
+                                </Button>
+                              )}
+                            </div>
+
+                            {/* Angel One inline credentials form */}
+                            {broker.auth_type === "credentials_form" && !isConnected && (
+                              <div className="mt-3 space-y-2">
+                                <Input
+                                  className="bg-secondary border-border text-xs"
+                                  placeholder="Client Code"
+                                  value={angelCreds.client_code}
+                                  onChange={(e) => setAngelCreds(p => ({ ...p, client_code: e.target.value }))}
+                                />
+                                <Input
+                                  className="bg-secondary border-border text-xs"
+                                  type="password"
+                                  placeholder="PIN"
+                                  value={angelCreds.pin}
+                                  onChange={(e) => setAngelCreds(p => ({ ...p, pin: e.target.value }))}
+                                />
+                                <Input
+                                  className="bg-secondary border-border text-xs"
+                                  placeholder="TOTP (from authenticator app)"
+                                  value={angelCreds.totp}
+                                  onChange={(e) => setAngelCreds(p => ({ ...p, totp: e.target.value }))}
+                                />
+                                <Button
+                                  size="sm"
+                                  className="bg-amber hover:bg-amber-dark text-navy font-semibold w-full"
+                                  onClick={() => angelOneMutation.mutate()}
+                                  disabled={!angelCreds.client_code || !angelCreds.pin || !angelCreds.totp || angelOneMutation.isPending}
+                                >
+                                  {angelOneMutation.isPending ? (
+                                    <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Connecting...</>
+                                  ) : (
+                                    "Connect"
+                                  )}
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}

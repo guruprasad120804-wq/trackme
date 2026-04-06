@@ -40,6 +40,20 @@ class Settings(BaseSettings):
     openrouter_fallback_model: str = "nvidia/nemotron-3-super-120b-a12b:free"
     openrouter_backup_model: str = "nvidia/nemotron-3-nano-30b-a3b:free"
 
+    # Broker OAuth credentials (only configured brokers shown to users)
+    zerodha_api_key: str = ""
+    zerodha_api_secret: str = ""
+    upstox_client_id: str = ""
+    upstox_client_secret: str = ""
+    fyers_app_id: str = ""
+    fyers_secret_id: str = ""
+    angel_one_api_key: str = ""
+    angel_one_secret: str = ""
+    five_paisa_vendor_key: str = ""
+    five_paisa_encryption_key: str = ""
+    dhan_client_id: str = ""
+    dhan_secret: str = ""
+
     # MF Aggregator
     mf_api_key: str = ""
     mf_base_url: str = "https://api.example.com/mf"

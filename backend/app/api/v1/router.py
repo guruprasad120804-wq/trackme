@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.api.v1 import auth, dashboard, portfolio, transactions, alerts, chat, subscription, import_data, settings, mf, notifications, assets, insurance
+from app.api.v1 import auth, dashboard, portfolio, transactions, alerts, chat, subscription, import_data, settings, mf, notifications, assets, insurance, brokers
 
 api_router = APIRouter(prefix="/api/v1")
 
@@ -17,3 +17,4 @@ api_router.include_router(mf.router, prefix="/mf", tags=["mf-import"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(assets.router, prefix="/assets", tags=["assets"])
 api_router.include_router(insurance.router, prefix="/insurance", tags=["insurance"])
+api_router.include_router(brokers.router, prefix="/brokers", tags=["brokers"])

@@ -130,6 +130,20 @@ export const saveWhatsAppConfig = (data: Record<string, unknown>) =>
 export const updateProfile = (data: Record<string, unknown>) =>
   api.patch("/settings/profile", data);
 
+// Broker Connect
+export const getAvailableBrokers = () => api.get("/brokers/available");
+export const getBrokerConnections = () => api.get("/brokers/connections");
+export const getBrokerOAuthUrl = (brokerType: string) =>
+  api.get(`/brokers/${brokerType}/oauth/authorize`);
+export const saveBrokerOAuthCallback = (brokerType: string, code: string, redirectUri: string) =>
+  api.post(`/brokers/${brokerType}/oauth/callback`, { code, redirect_uri: redirectUri });
+export const saveBrokerCredentials = (brokerType: string, data: Record<string, string>) =>
+  api.post(`/brokers/${brokerType}/credentials`, data);
+export const syncBrokerHoldings = (connectionId: string) =>
+  api.post(`/brokers/${connectionId}/sync`);
+export const disconnectBroker = (connectionId: string) =>
+  api.delete(`/brokers/${connectionId}`);
+
 // Gmail Integration
 export const getEmailOAuthUrl = () => api.get("/settings/email/oauth/authorize");
 export const saveEmailOAuthCallback = (code: string, redirectUri: string) =>
