@@ -15,11 +15,13 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle 401 — redirect to login
+// Handle 401 — redirect to login (skip auth endpoints to avoid redirect loops)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== "undefined") {
+    const url = error.config?.url || "";
+    const isAuthEndpoint = url.includes("/auth/");
+    if (error.response?.status === 401 && typeof window !== "undefined" && !isAuthEndpoint) {
       localStorage.removeItem("trackme_token");
       localStorage.removeItem("trackme_refresh_token");
       window.location.href = "/login";
