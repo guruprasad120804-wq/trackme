@@ -1,7 +1,11 @@
 """Google OAuth 2.0 authentication flow."""
+import logging
+
 import httpx
 
 from app.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
@@ -53,6 +57,7 @@ def get_gmail_auth_url(redirect_uri: str, state: str | None = None) -> str:
 
 async def exchange_code_for_tokens(code: str, redirect_uri: str) -> dict:
     async with httpx.AsyncClient(timeout=30) as client:
+        logger.info("Token exchange: redirect_uri=%s, client_id=%s...", redirect_uri, settings.google_client_id[:20])
         resp = await client.post(GOOGLE_TOKEN_URL, data={
             "code": code,
             "client_id": settings.google_client_id,
@@ -60,6 +65,8 @@ async def exchange_code_for_tokens(code: str, redirect_uri: str) -> dict:
             "redirect_uri": redirect_uri,
             "grant_type": "authorization_code",
         })
+        if resp.status_code != 200:
+            logger.error("Google token exchange failed: %s %s", resp.status_code, resp.text)
         resp.raise_for_status()
         return resp.json()
 
