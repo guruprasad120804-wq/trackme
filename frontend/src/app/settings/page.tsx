@@ -184,6 +184,7 @@ function SettingsContent() {
   });
 
   const [angelCreds, setAngelCreds] = useState({ client_code: "", pin: "", totp: "" });
+  const [dhanToken, setDhanToken] = useState("");
 
   const syncBrokerMutation = useMutation({
     mutationFn: (connectionId: string) => syncBrokerHoldings(connectionId),
@@ -205,6 +206,14 @@ function SettingsContent() {
     mutationFn: () => saveBrokerCredentials("angel_one", angelCreds),
     onSuccess: () => {
       setAngelCreds({ client_code: "", pin: "", totp: "" });
+      queryClient.invalidateQueries({ queryKey: ["broker-connections"] });
+    },
+  });
+
+  const dhanMutation = useMutation({
+    mutationFn: () => saveBrokerCredentials("dhan", { access_token: dhanToken }),
+    onSuccess: () => {
+      setDhanToken("");
       queryClient.invalidateQueries({ queryKey: ["broker-connections"] });
     },
   });
@@ -395,7 +404,7 @@ function SettingsContent() {
                               <div>
                                 <p className="text-sm font-medium text-foreground">{broker.name}</p>
                                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                                  {broker.auth_type === "credentials_form" ? "API Key + TOTP" : "OAuth Connect"}
+                                  {broker.type === "angel_one" ? "API Key + TOTP" : broker.type === "dhan" ? "Access Token" : "OAuth Connect"}
                                 </p>
                               </div>
                               {isConnected ? (
@@ -411,8 +420,8 @@ function SettingsContent() {
                               )}
                             </div>
 
-                            {/* Angel One inline credentials form */}
-                            {broker.auth_type === "credentials_form" && !isConnected && (
+                            {/* Angel One credentials form */}
+                            {broker.type === "angel_one" && broker.auth_type === "credentials_form" && !isConnected && (
                               <div className="mt-3 space-y-2">
                                 <Input
                                   className="bg-secondary border-border text-xs"
@@ -440,6 +449,34 @@ function SettingsContent() {
                                   disabled={!angelCreds.client_code || !angelCreds.pin || !angelCreds.totp || angelOneMutation.isPending}
                                 >
                                   {angelOneMutation.isPending ? (
+                                    <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Connecting...</>
+                                  ) : (
+                                    "Connect"
+                                  )}
+                                </Button>
+                              </div>
+                            )}
+
+                            {/* Dhan access token form */}
+                            {broker.type === "dhan" && broker.auth_type === "credentials_form" && !isConnected && (
+                              <div className="mt-3 space-y-2">
+                                <p className="text-[10px] text-muted-foreground">
+                                  Generate an access token from <a href="https://web.dhan.co" target="_blank" rel="noopener noreferrer" className="text-amber hover:underline">web.dhan.co</a> and paste it below
+                                </p>
+                                <Input
+                                  className="bg-secondary border-border text-xs"
+                                  type="password"
+                                  placeholder="Paste your Dhan access token"
+                                  value={dhanToken}
+                                  onChange={(e) => setDhanToken(e.target.value)}
+                                />
+                                <Button
+                                  size="sm"
+                                  className="bg-amber hover:bg-amber-dark text-navy font-semibold w-full"
+                                  onClick={() => dhanMutation.mutate()}
+                                  disabled={!dhanToken || dhanMutation.isPending}
+                                >
+                                  {dhanMutation.isPending ? (
                                     <><Loader2 className="h-4 w-4 mr-1 animate-spin" />Connecting...</>
                                   ) : (
                                     "Connect"
